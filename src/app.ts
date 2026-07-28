@@ -12,7 +12,9 @@ import { optionalAuthMiddleware } from "./middleware/middleware-auth";
 
 import authRouter from "./router/rou.auth";
 import { connectDB } from "./config/connectdb";
-import { registerRoutes } from "./router";
+import user from "./router/rou.User";
+import swap from "./router/rou.swap";
+import adminRouter from "./router/rou.admin";
 
 const app = express();
 
@@ -92,8 +94,15 @@ app.all(
     schema: UserFullInfo,
   }),
 );
+  app.get("/", (_, res) => res.send("Welcome to the Kunstify API!"));
+ app.use("/user",restrictedCors, user);
 
-// registerRoutes(app);
+  //admin
+ app.use("/admin",restrictedCors, adminRouter);
+
+  // Tokens - swap 
+  app.use("/swap", restrictedCors, swap);
+
 
 /**
  * 404 Not Found handler
