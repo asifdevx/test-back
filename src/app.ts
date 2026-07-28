@@ -95,7 +95,7 @@ app.all(
   }),
 );
   app.get("/", (_, res) => res.send("Welcome to the Kunstify API!"));
- app.use("/user",restrictedCors, user);
+
 
   //admin
  app.use("/admin",restrictedCors, adminRouter);
