@@ -1,0 +1,56 @@
+[
+  {
+    "constant": true,
+    "inputs": [],
+    "name": "currentEpoch",
+    "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function"
+  },
+  { "constant": true, "inputs": [], "name": "NFTCounter", "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }], "payable": false, "stateMutability": "view", "type": "function" },
+  {
+    "constant": true,
+    "inputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+    "name": "validators",
+    "outputs": [
+      { "internalType": "uint256", "name": "amount", "type": "uint256" },
+      { "internalType": "uint256", "name": "reward", "type": "uint256" },
+      { "internalType": "uint256", "name": "activationEpoch", "type": "uint256" },
+      { "internalType": "uint256", "name": "deactivationEpoch", "type": "uint256" },
+      { "internalType": "uint256", "name": "jailTime", "type": "uint256" },
+      { "internalType": "address", "name": "signer", "type": "address" },
+      { "internalType": "address", "name": "contractAddress", "type": "address" },
+      { "internalType": "enum StakeManagerStorage.Status", "name": "status", "type": "uint8" },
+      { "internalType": "uint256", "name": "commissionRate", "type": "uint256" },
+      { "internalType": "uint256", "name": "lastCommissionUpdate", "type": "uint256" },
+      { "internalType": "uint256", "name": "delegatorsReward", "type": "uint256" },
+      { "internalType": "uint256", "name": "delegatedAmount", "type": "uint256" },
+      { "internalType": "uint256", "name": "initialRewardPerStake", "type": "uint256" }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [{ "internalType": "address", "name": "user", "type": "address" }],
+    "name": "getStakeAndRewards",
+    "outputs": [
+      { "internalType": "uint256", "name": "stakeAmount", "type": "uint256" },
+      { "internalType": "uint256", "name": "liquidRewards", "type": "uint256" }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [{ "internalType": "address", "name": "user", "type": "address" }],
+    "name": "getLiquidRewards",
+    "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function"
+  }
+]

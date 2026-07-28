@@ -1,0 +1,71 @@
+[
+  {
+    "inputs": [{ "internalType": "address", "name": "operatorAddress", "type": "address" }],
+    "name": "getValidatorBasicInfo",
+    "outputs": [
+      { "internalType": "uint256", "name": "createdTime", "type": "uint256" },
+      { "internalType": "bool", "name": "jailed", "type": "bool" },
+      { "internalType": "uint256", "name": "jailUntil", "type": "uint256" }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "uint256", "name": "offset", "type": "uint256" },
+      { "internalType": "uint256", "name": "limit", "type": "uint256" }
+    ],
+    "name": "getValidators",
+    "outputs": [
+      { "internalType": "address[]", "name": "operatorAddrs", "type": "address[]" },
+      { "internalType": "address[]", "name": "creditAddrs", "type": "address[]" },
+      { "internalType": "uint256", "name": "totalLength", "type": "uint256" }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{ "internalType": "address", "name": "operatorAddress", "type": "address" }],
+    "name": "getValidatorCommission",
+    "outputs": [
+      {
+        "components": [
+          { "internalType": "uint64", "name": "rate", "type": "uint64" },
+          { "internalType": "uint64", "name": "maxRate", "type": "uint64" },
+          { "internalType": "uint64", "name": "maxChangeRate", "type": "uint64" }
+        ],
+        "internalType": "struct StakeHub.Commission",
+        "name": "",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{ "internalType": "address", "name": "operatorAddress", "type": "address" }],
+    "name": "getValidatorCreditContract",
+    "outputs": [{ "internalType": "address", "name": "creditContract", "type": "address" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "address", "name": "operatorAddress", "type": "address" },
+      { "internalType": "uint256", "name": "index", "type": "uint256" }
+    ],
+    "name": "getValidatorRewardRecord",
+    "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+    "stateMutability": "view",
+    "type": "function"
+  },{
+    "inputs": [
+      { "internalType": "address", "name": "operatorAddress", "type": "address" },
+      { "internalType": "uint256", "name": "index", "type": "uint256" }
+    ],
+    "name": "getValidatorTotalPooledBNBRecord",
+    "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+    "stateMutability": "view",
+    "type": "function"
+  }
+]
