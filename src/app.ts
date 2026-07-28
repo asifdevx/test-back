@@ -98,7 +98,7 @@ app.all(
 
 
   //admin
- app.use("/admin",restrictedCors, adminRouter);
+//  app.use("/admin",restrictedCors, adminRouter);
 
   // Tokens - swap 
   app.use("/swap", restrictedCors, swap);
