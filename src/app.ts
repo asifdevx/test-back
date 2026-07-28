@@ -12,6 +12,7 @@ import { optionalAuthMiddleware } from "./middleware/middleware-auth";
 
 import authRouter from "./router/rou.auth";
 import { connectDB } from "./config/connectdb";
+import { registerRoutes } from "./router";
 
 const app = express();
 
@@ -92,7 +93,7 @@ app.all(
   }),
 );
 
-
+registerRoutes(app);
 
 /**
  * 404 Not Found handler
