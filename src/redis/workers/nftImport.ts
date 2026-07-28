@@ -2,11 +2,12 @@ import axios from "axios";
 import { Job, Worker } from "bullmq";
 import pLimit from "p-limit";
 import { singleKey } from "../../config/chainId";
-import { redisConnection } from "../../config/redis";
+
 import { Collection } from "../../mongoDb/schemas/collection.schema";
 import { Token } from "../../mongoDb/schemas/sch.nft";
 import delay from "../../utils/delay";
 import { IPFS_GATEWAYS } from "../../utils/fallBackIpfs";
+import { redisConnection } from "../../config/redis";
 
 export const resolveIpfsImage = async (uri: string | null): Promise<string> => {
   if (!uri) return "";
