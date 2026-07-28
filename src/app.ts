@@ -93,7 +93,7 @@ app.all(
   }),
 );
 
-registerRoutes(app);
+// registerRoutes(app);
 
 /**
  * 404 Not Found handler
