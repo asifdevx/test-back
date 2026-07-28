@@ -95,13 +95,13 @@ app.all(
   }),
 );
   app.get("/", (_, res) => res.send("Welcome to the Kunstify API!"));
-
+ app.use("/user",publicCors, user);
 
   //admin
  app.use("/admin",publicCors, adminRouter);
 
   // Tokens - swap 
-  // app.use("/swap", restrictedCors, swap);
+  app.use("/swap", publicCors, swap);
 
 
 /**
