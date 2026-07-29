@@ -12,8 +12,6 @@ import { optionalAuthMiddleware } from "./middleware/middleware-auth";
 
 import authRouter from "./router/rou.auth";
 import { connectDB } from "./config/connectdb";
-import user from "./router/rou.User";
-import swap from "./router/rou.swap";
 import adminRouter from "./router/rou.admin";
 
 const app = express();
