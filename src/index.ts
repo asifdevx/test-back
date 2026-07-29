@@ -13,7 +13,7 @@ const httpServer = createServer(app);
 const start = async () => {
   try {
     await connectDB();
-    httpServer.listen({ port: Number(PORT), host: "127.0.0.1" }, () => {
+    httpServer.listen({ port: Number(PORT), host: "0.0.0.0" }, () => {
       console.log("[✅ Server] Started ");
     });
 

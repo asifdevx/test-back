@@ -3,10 +3,7 @@
     "target": "es2021",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
-    "typeRoots": [
-      "./src/types",
-      "./node_modules/@types"
-    ],
+     "types": ["node"],
     "resolveJsonModule": true,
     "rootDir": "./src",
     "outDir": "./dist",
@@ -14,5 +11,5 @@
     "noImplicitAny": true,
     "skipLibCheck": true
   },
- "include": ["src/**/*.ts", "src/**/*.d.ts","axios"]
+ "include": ["src/**/*.ts", "src/**/*.d.ts"]
 }
