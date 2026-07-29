@@ -98,10 +98,10 @@ app.all(
 //  app.use("/user",publicCors, user);
 
   //admin
- app.use("/admin",restrictedCors, adminRouter);
+//  app.use("/admin",restrictedCors, adminRouter);
 
   // Tokens - swap 
-  app.use("/swap", publicCors, swap);
+  app.use("/swap", restrictedCors, swap);
 
 
 /**
