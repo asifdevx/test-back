@@ -82,19 +82,20 @@ app.get("/status", (req: Request, res: Response) => {
  * - GET /auth/me
  * - POST /auth/logout
  */
-app.use("/auth", restrictedCors, authRouter);
+app.use("/auth", publicCors, authRouter);
 
 
 
 
 app.all(
   "/g",
-  restrictedCors,
+  publicCors,
   createHandler({
     schema: UserFullInfo,
   }),
 );
   app.get("/", (_, res) => res.send("Welcome to the Kunstify API!"));
+  
 //  app.use("/user",publicCors, user);
 
   //admin

@@ -1,7 +1,7 @@
 import { CorsOptions } from "cors";
 import { BASE_URL } from "./base";
 
-const whitelist = [...BASE_URL];
+const whitelist = ["https://kun-frontend.vercel.app"];
 if (process.env.NODE_ENV === "test") {
   whitelist.push("http://localhost:3000");
 }
