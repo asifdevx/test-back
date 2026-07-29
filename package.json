@@ -5,7 +5,7 @@
   "main": "dist/index.js",
   "private": true,
   "scripts": {
-     "build": "tsc",
+    "build": "tsc",
     "start": "node dist/index.js",
     "seed": "ts-node-dev src/utils/seed.ts"
   },
