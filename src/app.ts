@@ -16,14 +16,7 @@ import adminRouter from "./router/rou.admin";
 
 const app = express();
 
-app.use(async (req, res, next) => {
-  try {
-    await connectDB();
-    next();
-  } catch (err) {
-    next(err);
-  }
-});
+
 app.use(
   helmet({
     crossOriginResourcePolicy: { policy: "cross-origin" },
@@ -47,7 +40,14 @@ const publicCors = cors({ origin: "*" });
  * Global rate limiter
  * Applied to all requests (role-based)
  */
-
+app.use(async (req, res, next) => {
+  try {
+    await connectDB();
+    next();
+  } catch (err) {
+    next(err);
+  }
+});
 app.use(optionalAuthMiddleware);
 // app.use(apiLimiter);
 
@@ -80,14 +80,14 @@ app.get("/status", (req: Request, res: Response) => {
  * - GET /auth/me
  * - POST /auth/logout
  */
-app.use("/auth", publicCors, authRouter);
+app.use("/auth", restrictedCors, authRouter);
 
 
 
 
 app.all(
   "/g",
-  publicCors,
+  restrictedCors,
   createHandler({
     schema: UserFullInfo,
   }),
@@ -97,7 +97,7 @@ app.all(
 //  app.use("/user",publicCors, user);
 
   //admin
- app.use("/admin",publicCors, adminRouter);
+ app.use("/admin",restrictedCors, adminRouter);
 
   // Tokens - swap 
   // app.use("/swap", publicCors, swap);
