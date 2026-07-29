@@ -1,5 +1,5 @@
 import { ethers } from "ethers";
-import { redis } from "../config/redis";
+
 import { DOZ_TOKEN_ADDRESS, WAVAX_ADDRESS } from "../config/swap.config";
 
 import { POOL_ABI } from "../constant/abi";
@@ -122,21 +122,15 @@ async function getDoz24hVolumeUsd(dozPriceUsd: number, dozDecimals: number): Pro
 }
 
 async function recordPriceSnapshot(priceUsd: number): Promise<void> {
-  if (!redis) return;
+ 
   const now = Date.now();
-  await redis.zadd(PRICE_HISTORY_KEY, now, `${now}:${priceUsd}`);
-  // trim anything older than 25h so the set doesn't grow forever
-  await redis.zremrangebyscore(PRICE_HISTORY_KEY, 0, now - 25 * 60 * 60 * 1000);
+
 }
 
 async function get24hAgoPrice(): Promise<number | null> {
-  if (!redis) return null;
-  const target = Date.now() - 24 * 60 * 60 * 1000;
-  // first snapshot at/after the 24h-ago mark — closest we have to that point in time
-  const results: string[] = await redis.zrangebyscore(PRICE_HISTORY_KEY, target, "+inf", "LIMIT", 0, 1);
-  if (!results.length) return null;
-  const [, priceStr] = results[0].split(":");
-  const price = Number(priceStr);
+  
+
+  const price =40;
   return Number.isFinite(price) ? price : null;
 }
 
@@ -154,10 +148,7 @@ export interface DozMarketData {
 }
 
 export async function getDozMarketData(): Promise<DozMarketData> {
-  if (redis) {
-    const cached = await redis.get(CACHE_KEY);
-    if (cached) return JSON.parse(cached);
-  }
+
 
   const [avaxPriceUsd, goldPriceUsd, snapshot] = await Promise.all([
     getPriceBySymbol("AVAX"),
@@ -193,9 +184,7 @@ export async function getDozMarketData(): Promise<DozMarketData> {
 
   DozAdminModel.updateOne({ _id: "admin" }, { $set: { dozValueInUsd: dozPriceUsd } }, { upsert: true }).catch((err) => console.error("Failed to sync DozAdmin.dozValueInUsd:", err));
 
-  if (redis) {
-    await redis.set(CACHE_KEY, JSON.stringify(result), "EX", CACHE_TTL_SECONDS);
-  }
+
 
   return result;
 }

@@ -2,7 +2,6 @@ import axios from "axios";
 import { Request, Response } from "express";
 import { DEX_BASE } from "../../config/base";
 import { CHAIN_SLUG, NATIVE_TOKENS } from "../../config/chains";
-import { redis } from "../../config/redis";
 import { ADDRESS_RE, DOZ_AVAX_CHAIN_ID, DOZ_TOKEN_ADDRESS, MAX_SLIPPAGE_BPS, MIN_SLIPPAGE_BPS, NATIVE_ADDRESS } from "../../config/swap.config";
 import { buildDozSwapTx } from "../../services/dozAmm.service";
 
@@ -40,12 +39,7 @@ export async function getTokenCardDetails(req: Request, res: Response) {
     const isAll = rawChainId === "all";
     const cacheKey = isAll ? "tokens:all" : `tokens:${Number(rawChainId)}`;
 
-    // ─────────────────────────────
-    // 1. CACHE HIT
-    // ─────────────────────────────
-    const cached = await redis?.get(cacheKey);
-
-    if (cached) return res.json(JSON.parse(cached));
+   
 
     // ─────────────────────────────
     // 2. DB FETCH
@@ -151,8 +145,7 @@ export async function getTokenCardDetails(req: Request, res: Response) {
     // ─────────────────────────────
     // 6. CACHE RESULT
     // ─────────────────────────────
-    await redis?.set(cacheKey, JSON.stringify(result));
-    await redis?.expire(cacheKey, 40);
+
 
     return res.json(result);
   } catch (error) {
@@ -175,8 +168,7 @@ export async function getTokenDetail(req: Request, res: Response) {
     }
 
     const cacheKey = isNative ? `token:detail:${chainId}:native` : `token:detail:${chainId}:${contractAddress}`;
-    const cached = await redis?.get(cacheKey);
-    if (cached) return res.json(JSON.parse(cached));
+   
 
     const chain = await Chain.findOne({ chainId, isActive: true });
     if (!chain) return res.status(404).json({ message: "Chain not found" });
@@ -229,7 +221,7 @@ export async function getTokenDetail(req: Request, res: Response) {
         twitter: bestPair?.info?.socials?.find((s: any) => s.type === "twitter")?.url ?? null,
         telegram: bestPair?.info?.socials?.find((s: any) => s.type === "telegram")?.url ?? null,
       };
-      if (redis) await redis.set(cacheKey, JSON.stringify(result), "EX", 120);
+ 
       return res.json(result);
     }
 
@@ -267,7 +259,7 @@ export async function getTokenDetail(req: Request, res: Response) {
           telegram: null as string | null,
         };
 
-        if (redis) await redis.set(cacheKey, JSON.stringify(result), "EX", 30);
+        
         return res.json(result);
       } catch (err) {
         console.error("Failed to load DOZ market data, falling back to DexScreener path:", err);
@@ -362,9 +354,7 @@ export async function getTokenDetail(req: Request, res: Response) {
     // ─────────────────────────────
     // 6. CACHE
     // ─────────────────────────────
-    if (redis) {
-      await redis.set(cacheKey, JSON.stringify(result), "EX", 120);
-    }
+ 
 
     return res.json(result);
   } catch (error) {

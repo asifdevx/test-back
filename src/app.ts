@@ -13,6 +13,7 @@ import { optionalAuthMiddleware } from "./middleware/middleware-auth";
 import authRouter from "./router/rou.auth";
 import { connectDB } from "./config/connectdb";
 import adminRouter from "./router/rou.admin";
+import swap from "./router/rou.swap";
 
 const app = express();
 
@@ -100,7 +101,7 @@ app.all(
  app.use("/admin",restrictedCors, adminRouter);
 
   // Tokens - swap 
-  // app.use("/swap", publicCors, swap);
+  app.use("/swap", publicCors, swap);
 
 
 /**
