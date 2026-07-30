@@ -18,12 +18,12 @@ router.get("/admin/swapTx/export", exportSwapTransactionsCsv);
 router.post("/admin/positions/mint", logMint);
 router.post("/admin/positions/remove", logRemove);
 router.get("/admin/positions", listPositions);
-router.get("/admin/positions/doz-restriction", getDozSwapRestrictionStatus);
-router.put("/admin/positions/doz-restriction", updateDozSwapRestrictionStatus);
+// router.get("/admin/positions/doz-restriction", getDozSwapRestrictionStatus);
+// router.put("/admin/positions/doz-restriction", updateDozSwapRestrictionStatus);
 
 
 
-// router.get("/", getAllChains);
+router.get("/swap", getAllChains);
 // router.get("/tokens", getTokenCardDetails);
 // router.get("/tokens/:chainId/:contractAddress", getTokenDetail);
 export default router;
