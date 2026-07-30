@@ -19,6 +19,7 @@ import { getOpenOceanQuote } from "../services/openOcean.service";
 import { getRelayQuote } from "../services/relay.service";
 import { getZeroExQuote } from "../services/zeroEx.service";
 import { buildDozSwapTx } from "../services/dozAmm.service";
+import { SwapTransaction } from "../mongoDb/schemas/sch.swapTx";
 
 
 const router = Router();
@@ -532,7 +533,7 @@ router.get("/swap/tokens/:chainId/:contractAddress",async (req:Request,res:Respo
   }
 })
 
-router.post("/quote",async (req:Request,res:Response)=>{
+router.post("/swap/quote",async (req:Request,res:Response)=>{
   let parsed: UnifiedQuoteRequest;
 
   try {
@@ -576,6 +577,36 @@ router.post("/quote",async (req:Request,res:Response)=>{
     return res.status(500).json({message:"Internal server "});
   }
 });
+router.post("/swap/tx",async (req:Request,res:Response)=> {
+  try {
+    const { walletAddress, isCrossChain, route, from, to, txHash, explorerUrl } = req.body || {};
 
+    if (!walletAddress || !txHash || !from?.address || !to?.address) {
+      return res.status(400).json({ success: false, message: "Missing required swap transaction fields" });
+    }
+
+    const doc = await SwapTransaction.findOneAndUpdate(
+      { txHash: String(txHash).toLowerCase() },
+      {
+        walletAddress: String(walletAddress).toLowerCase(),
+        isCrossChain: !!isCrossChain,
+        route: route || "",
+        from,
+        to,
+        txHash: String(txHash).toLowerCase(),
+        explorerUrl: explorerUrl || "",
+      },
+      { upsert: true, new: true, setDefaultsOnInsert: true, runValidators: true },
+    );
+
+    return res.status(201).json({ success: true, data: doc });
+  } catch (err: any) {
+    if (err?.code === 11000) {
+      return res.status(200).json({ success: true, message: "Already recorded" });
+    }
+    console.error("❌ createSwapTransaction error:", err);
+    return res.status(500).json({ success: false, message: "Failed to record swap transaction" });
+  }
+});
 
 export default router;
