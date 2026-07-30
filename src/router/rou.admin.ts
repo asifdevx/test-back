@@ -23,7 +23,7 @@ router.put("/admin/positions/doz-restriction", updateDozSwapRestrictionStatus);
 
 
 
-router.get("/", getAllChains);
+// router.get("/", getAllChains);
 // router.get("/tokens", getTokenCardDetails);
 // router.get("/tokens/:chainId/:contractAddress", getTokenDetail);
 export default router;
