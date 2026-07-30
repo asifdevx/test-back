@@ -37,6 +37,10 @@ export async function getTokenCardDetails(req: Request, res: Response) {
     }
 
     const isAll = rawChainId === "all";
+    const cacheKey = isAll ? "tokens:all" : `tokens:${Number(rawChainId)}`;
+
+   
+
     // ─────────────────────────────
     // 2. DB FETCH
     // ─────────────────────────────

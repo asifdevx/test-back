@@ -8,14 +8,155 @@ import { Chain } from "../mongoDb/schemas/sch.paymentChain";
 import { CHAIN_SLUG, NATIVE_TOKENS } from "../config/chains";
 import axios from "axios";
 import { DEX_BASE } from "../config/base";
-import { DOZ_AVAX_CHAIN_ID, DOZ_TOKEN_ADDRESS } from "../config/swap.config";
+import { ADDRESS_RE, DOZ_AVAX_CHAIN_ID, DOZ_TOKEN_ADDRESS, MAX_SLIPPAGE_BPS, MIN_SLIPPAGE_BPS, NATIVE_ADDRESS } from "../config/swap.config";
 import { getDozMarketData } from "../services/dozPricingService";
+import { UnifiedQuoteRequest } from "../types";
+import { SwapErrorCode } from "../utils/swapErrors";
+import { Pricing, PricingMode } from "../mongoDb/schemas/sch.pricing";
+import { SubscriptionModel } from "../mongoDb/schemas/sch.user-subscription";
+import { getMayanQuote } from "../services/mayan.service";
+import { getOpenOceanQuote } from "../services/openOcean.service";
+import { getRelayQuote } from "../services/relay.service";
+import { getZeroExQuote } from "../services/zeroEx.service";
+import { buildDozSwapTx } from "../services/dozAmm.service";
 
 
 const router = Router();
 const getSlug = (chainId: number) => (chainId === 1329 ? "seiv2" : CHAIN_SLUG[chainId]);
 function isDozToken(chainId: number, address: string): boolean {
   return chainId === DOZ_AVAX_CHAIN_ID && address.toLowerCase() === DOZ_TOKEN_ADDRESS.toLowerCase();
+}
+
+type SwapServiceError = Error & {
+  code: SwapErrorCode;
+  statusCode: number;
+};
+function isValidAddress(addr: string): boolean {
+  return addr.toLowerCase() === NATIVE_ADDRESS || ADDRESS_RE.test(addr);
+}
+async function handleSingleDozOrRoute(parsed: UnifiedQuoteRequest, feeBps: number) {
+  if (isDozAvaxPair(parsed)) {
+    const built = await buildDozSwapTx({
+      fromTokenAddress: parsed.fromTokenAddress,
+      toTokenAddress: parsed.toTokenAddress,
+      amountInRaw: parsed.fromAmount,
+      slippageBps: parsed.slippageBps ?? 100,
+      feeBps,
+    });
+
+    return {
+      route: "doz-amm",
+      toolName: "DOZ/AVAX AMM",
+      isCrossChain: false,
+      fromToken: { address: parsed.fromTokenAddress, symbol: "", decimals: 0, chainId: parsed.fromChainId },
+      toToken: { address: parsed.toTokenAddress, symbol: "", decimals: 0, chainId: parsed.toChainId },
+      fromAmount: parsed.fromAmount,
+      toAmount: built.amountOut,
+      toAmountMin: built.amountOutMinimum,
+      feeBps,
+      feeAmount: built.feeAmount,
+      feeToken: parsed.fromTokenAddress,
+      executionDurationSeconds: 5,
+      transactionRequest: { chainId: parsed.fromChainId, to: built.to, data: built.data, value: built.value },
+      approval: built.approval,
+      dozAmmMeta: { zeroForOne: built.zeroForOne, sqrtPriceX96After: built.sqrtPriceX96After, partialFill: built.partialFill },
+    };
+  }
+  
+}
+
+function createSwapServiceError(
+  code: SwapErrorCode,
+  message: string,
+  statusCode: number
+): SwapServiceError {
+  const error = new Error(message) as SwapServiceError;
+  error.code = code;
+  error.statusCode = statusCode;
+  return error;
+}
+
+function createValidationError(message: string): SwapServiceError {
+  const error = createSwapServiceError(SwapErrorCode.INVALID_PARAMS, message, 400);
+  error.name = "ValidationError";
+  return error;
+}
+function isDozAvaxPair(req: UnifiedQuoteRequest): boolean {
+  if (req.fromChainId !== DOZ_AVAX_CHAIN_ID || req.toChainId !== DOZ_AVAX_CHAIN_ID) return false;
+
+  const from = req.fromTokenAddress.toLowerCase();
+  const to = req.toTokenAddress.toLowerCase();
+  const doz = DOZ_TOKEN_ADDRESS.toLowerCase();
+  return (from === doz && to === NATIVE_ADDRESS) || (from === NATIVE_ADDRESS && to === doz);
+}
+
+function parseRequest(req: Request): UnifiedQuoteRequest {
+  const q = { ...req.query, ...req.body } as Record<string, string>;
+  const required = ["fromChainId", "toChainId", "fromTokenAddress", "toTokenAddress", "fromAmount", "fromAddress"];
+  for (const key of required) {
+    if (q[key] === undefined || q[key] === null || q[key] === "") {
+      throw  createValidationError(`Missing required param: ${key}`);
+    }
+  }
+
+  const fromChainId = Number(q.fromChainId);
+  const toChainId = Number(q.toChainId);
+  if (!Number.isInteger(fromChainId) || fromChainId <= 0) throw  createValidationError("fromChainId must be a positive integer");
+  if (!Number.isInteger(toChainId) || toChainId <= 0) throw  createValidationError("toChainId must be a positive integer");
+
+  if (!isValidAddress(q.fromTokenAddress)) throw  createValidationError("fromTokenAddress is not a valid address");
+  if (!isValidAddress(q.toTokenAddress)) throw  createValidationError("toTokenAddress is not a valid address");
+  if (!ADDRESS_RE.test(q.fromAddress)) throw  createValidationError("fromAddress is not a valid wallet address");
+  if (q.toAddress && !ADDRESS_RE.test(q.toAddress)) throw  createValidationError("toAddress is not a valid wallet address");
+
+  if (q.fromTokenAddress.toLowerCase() === q.toTokenAddress.toLowerCase() && fromChainId === toChainId) {
+    throw  createValidationError("fromTokenAddress and toTokenAddress must be different");
+  }
+
+  // fromAmount must be a positive integer string (raw base units) — reject decimals,
+  // negative numbers, scientific notation, and anything that isn't a clean bigint.
+  if (!/^\d+$/.test(q.fromAmount)) throw  createValidationError("fromAmount must be a positive integer string (raw base units)");
+  let fromAmountBig: bigint;
+  try {
+    fromAmountBig = BigInt(q.fromAmount);
+  } catch {
+    throw  createValidationError("fromAmount is not a valid integer");
+  }
+  if (fromAmountBig <= 0n) throw  createValidationError("fromAmount must be greater than 0");
+
+  let slippageBps: number | undefined;
+  if (q.slippageBps !== undefined) {
+    slippageBps = Number(q.slippageBps);
+    if (!Number.isFinite(slippageBps) || slippageBps < MIN_SLIPPAGE_BPS || slippageBps > MAX_SLIPPAGE_BPS) {
+      throw  createValidationError(`slippageBps must be between ${MIN_SLIPPAGE_BPS} and ${MAX_SLIPPAGE_BPS}`);
+    }
+  }
+
+  let fromTokenDecimals: number | undefined;
+  if (q.fromTokenDecimals !== undefined) {
+    fromTokenDecimals = Number(q.fromTokenDecimals);
+    if (!Number.isInteger(fromTokenDecimals) || fromTokenDecimals < 0 || fromTokenDecimals > 36) {
+      throw  createValidationError("fromTokenDecimals is out of range");
+    }
+  }
+
+  const routeHint = q.routeHint as UnifiedQuoteRequest["routeHint"] | undefined;
+  if (routeHint && !["doz", "aggregate", "bridge"].includes(routeHint)) {
+    throw  createValidationError(`Unknown routeHint: ${routeHint}`);
+  }
+
+  return {
+    routeHint,
+    fromChainId,
+    toChainId,
+    fromTokenAddress: q.fromTokenAddress,
+    toTokenAddress: q.toTokenAddress,
+    fromAmount: q.fromAmount,
+    fromAddress: q.fromAddress,
+    toAddress: q.toAddress || undefined,
+    slippageBps,
+    fromTokenDecimals,
+  };
 }
 function toCardFields(pair: any) {
   return {
@@ -66,7 +207,7 @@ router.get("/swap", async(req: Request, res: Response) =>{
     });
   }
 });
-router.get("/tokens",async (req:Request,res:Response)=>{
+router.get("/swap/tokens",async (req:Request,res:Response)=>{
   try {
     const rawChainId = req.query.chainId;
 
@@ -182,7 +323,7 @@ router.get("/tokens",async (req:Request,res:Response)=>{
     return res.status(500).json({ message: "Internal server error" });
   }
 });
-router.get("/tokens/:chainId/:contractAddress",async (req:Request,res:Response)=>{
+router.get("/swap/tokens/:chainId/:contractAddress",async (req:Request,res:Response)=>{
   try {
     const chainId = Number(req.params.chainId);
     const rawAddress = req.params.contractAddress as string;
@@ -390,4 +531,51 @@ router.get("/tokens/:chainId/:contractAddress",async (req:Request,res:Response)=
     });
   }
 })
+
+router.post("/quote",async (req:Request,res:Response)=>{
+  let parsed: UnifiedQuoteRequest;
+
+  try {
+    parsed = parseRequest(req);
+  } catch (e) {
+       return res.status(400).json({message:"Parsed failed "});
+
+  }
+
+  let FEE_BPS = 250;
+  const userFeeDetails = await SubscriptionModel.findOne({ address: req?.user?.address });
+  const subscriptionMOdel = await Pricing.findOne({ mode: PricingMode.NFT, pkgId: userFeeDetails?.packages?.nft?.pkgId ?? 0 });
+  if (subscriptionMOdel && subscriptionMOdel.fee && Number(subscriptionMOdel.fee)) FEE_BPS = subscriptionMOdel.fee;
+
+
+  if (isDozAvaxPair(parsed)) {
+    try {
+      const data = await handleSingleDozOrRoute(parsed, FEE_BPS);
+      return res.json({ success: true, data });
+    } catch (e) {
+             return res.status(400).json({message:"isDozAvaxPair failed "});
+
+    }
+  }
+
+  const hint = parsed.routeHint ?? (parsed.fromChainId === parsed.toChainId ? "aggregate" : "bridge");
+
+  try {
+    if (hint === "doz") {
+      if (!isDozAvaxPair(parsed)) {
+        return res.status(400).json({ success: false, message: "routeHint=doz only supports the DOZ<->AVAX pair on Avalanche" });
+      }
+      const data = await handleSingleDozOrRoute(parsed, FEE_BPS);
+      return res.json({ success: true, data });
+    }
+
+  
+
+  
+  } catch (e) {
+    return res.status(500).json({message:"Internal server "});
+  }
+});
+
+
 export default router;

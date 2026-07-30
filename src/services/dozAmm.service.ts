@@ -17,33 +17,32 @@ const provider = new ethers.JsonRpcProvider(getRpcForPool);
 const router = new ethers.Contract(env.ROUTER_ADDRESS, ROUTER_ABI, provider);
 const pool = new ethers.Contract(env.POOL_ADDRESS, POOL_ABI || POOL_ABI, provider);
 
-export class DozAmmError extends SwapServiceError {
-  constructor(message: string, code: SwapErrorCode = SwapErrorCode.UNKNOWN) {
-    super(code, message);
-    this.name = "DozAmmError";
-  }
+function createDozAmmError(message: string, code: SwapErrorCode = SwapErrorCode.UNKNOWN): SwapServiceError {
+  const error = new SwapServiceError(code, message);
+  error.name = "DozAmmError";
+  return error;
 }
 
 
 
-function classifyChainError(err: any): DozAmmError {
+function classifyChainError(err: any): SwapServiceError {
   if (err?.name === "TimeoutError") {
-    return new DozAmmError("The Avalanche RPC took too long to respond. Please try again.", SwapErrorCode.TIMEOUT);
+    return createDozAmmError("The Avalanche RPC took too long to respond. Please try again.", SwapErrorCode.TIMEOUT);
   }
   const reason: string | undefined = err?.reason || err?.shortMessage || err?.error?.message;
   if (reason && /below.*min|amount.*(too small|zero)/i.test(reason)) {
-    return new DozAmmError("This amount is too small to swap. Try a larger amount.", SwapErrorCode.AMOUNT_TOO_LOW);
+    return createDozAmmError("This amount is too small to swap. Try a larger amount.", SwapErrorCode.AMOUNT_TOO_LOW);
   }
   if (reason && /price.*limit|liquidity|slippage/i.test(reason)) {
-    return new DozAmmError("This amount exceeds available pool liquidity. Try a smaller amount.", SwapErrorCode.AMOUNT_TOO_HIGH);
+    return createDozAmmError("This amount exceeds available pool liquidity. Try a smaller amount.", SwapErrorCode.AMOUNT_TOO_HIGH);
   }
   if (err?.code === "NETWORK_ERROR" || err?.code === "SERVER_ERROR" || err?.code === "TIMEOUT") {
-    return new DozAmmError("Could not reach the Avalanche network. Please try again.", SwapErrorCode.UPSTREAM_UNAVAILABLE);
+    return createDozAmmError("Could not reach the Avalanche network. Please try again.", SwapErrorCode.UPSTREAM_UNAVAILABLE);
   }
   if (err?.code === "CALL_EXCEPTION") {
-    return new DozAmmError(reason ? `Pool rejected the swap: ${reason}` : "The pool rejected this swap.", SwapErrorCode.NO_ROUTE);
+    return createDozAmmError(reason ? `Pool rejected the swap: ${reason}` : "The pool rejected this swap.", SwapErrorCode.NO_ROUTE);
   }
-  return new DozAmmError(reason || err?.message || "Failed to quote DOZ/AVAX swap", SwapErrorCode.UNKNOWN);
+  return createDozAmmError(reason || err?.message || "Failed to quote DOZ/AVAX swap", SwapErrorCode.UNKNOWN);
 }
 
 interface PoolTokens {
@@ -53,7 +52,7 @@ interface PoolTokens {
 }
 
 
- function isDozDirectionBlocked(mode: DozSwapDirectionLock, isFromNative: boolean): boolean {
+function isDozDirectionBlocked(mode: DozSwapDirectionLock, isFromNative: boolean): boolean {
   if (mode === DozSwapDirectionLock.DISABLE_ALL) return true;
   if (mode === DozSwapDirectionLock.DISABLE_FROM_AVAX && isFromNative) return true;
   if (mode === DozSwapDirectionLock.DISABLE_FROM_DOZ && !isFromNative) return true;
@@ -92,7 +91,7 @@ function resolveZeroForOne(fromAddress: string, tokens: PoolTokens): boolean {
   const from = fromAddress.toLowerCase() === NATIVE_ADDRESS ? tokens.wavax : fromAddress.toLowerCase();
   if (from === tokens.token0) return true;
   if (from === tokens.token1) return false;
-  throw new DozAmmError("Token is not part of the DOZ/AVAX pool", SwapErrorCode.UNSUPPORTED_PAIR);
+  throw createDozAmmError("Token is not part of the DOZ/AVAX pool", SwapErrorCode.UNSUPPORTED_PAIR);
 }
 
 export interface DozQuoteParams {
@@ -122,9 +121,9 @@ export async function getDozQuote(params: DozQuoteParams): Promise<DozQuoteResul
   try {
     totalAmountIn = BigInt(params.amountInRaw);
   } catch {
-    throw new DozAmmError("Invalid swap amount", SwapErrorCode.INVALID_PARAMS);
+    throw createDozAmmError("Invalid swap amount", SwapErrorCode.INVALID_PARAMS);
   }
-  if (totalAmountIn <= 0n) throw new DozAmmError("Enter an amount greater than 0", SwapErrorCode.AMOUNT_TOO_LOW);
+  if (totalAmountIn <= 0n) throw createDozAmmError("Enter an amount greater than 0", SwapErrorCode.AMOUNT_TOO_LOW);
 
     const isFromNative = params.fromTokenAddress.toLowerCase() === NATIVE_ADDRESS;
     const restrictionMode = await getDozSwapRestrictionMode();
@@ -135,7 +134,7 @@ export async function getDozQuote(params: DozQuoteParams): Promise<DozQuoteResul
           : isFromNative
             ? "Swapping AVAX into DOZ is temporarily disabled."
             : "Swapping DOZ into AVAX is temporarily disabled.";
-       throw new DozAmmError(message, (SwapErrorCode as any).ROUTE_DISABLED ?? SwapErrorCode.UNSUPPORTED_PAIR);
+       throw createDozAmmError(message, (SwapErrorCode as any).ROUTE_DISABLED ?? SwapErrorCode.UNSUPPORTED_PAIR);
     }
 
   const tokens = await getPoolTokens();
@@ -155,7 +154,7 @@ export async function getDozQuote(params: DozQuoteParams): Promise<DozQuoteResul
     throw classifyChainError(err);
   }
   if (amountOut <= 0n) {
-    throw new DozAmmError("This amount is too small to swap. Try a larger amount.", SwapErrorCode.AMOUNT_TOO_LOW);
+    throw createDozAmmError("This amount is too small to swap. Try a larger amount.", SwapErrorCode.AMOUNT_TOO_LOW);
   }
 
   const slippageBps = BigInt(Math.max(0, Math.floor(params.slippageBps)));
@@ -220,7 +219,7 @@ export async function buildDozSwapTx(params: DozBuildTxParams): Promise<DozBuild
     }
   } catch (err) {
     console.error("DOZ AMM calldata encoding failed:", err);
-    throw new DozAmmError("Failed to prepare the swap transaction. Please try again.", SwapErrorCode.UNKNOWN);
+    throw createDozAmmError("Failed to prepare the swap transaction. Please try again.", SwapErrorCode.UNKNOWN);
   }
 
   return {
