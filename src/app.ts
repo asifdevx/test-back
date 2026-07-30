@@ -98,7 +98,7 @@ app.all(
 //  app.use("/user",publicCors, user);
 
   //admin
- app.use("/admin",restrictedCors, adminRouter);
+ app.use("/",restrictedCors, adminRouter);
 
 
 
