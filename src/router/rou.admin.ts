@@ -9,7 +9,7 @@ import { CHAIN_SLUG, NATIVE_TOKENS } from "../config/chains";
 import axios from "axios";
 import { DEX_BASE } from "../config/base";
 import { ADDRESS_RE, DOZ_AVAX_CHAIN_ID, DOZ_TOKEN_ADDRESS, MAX_SLIPPAGE_BPS, MIN_SLIPPAGE_BPS, NATIVE_ADDRESS } from "../config/swap.config";
-import { getDozMarketData } from "../services/dozPricingService";
+import { getDozMarketData, recordDozSwapPrice } from "../services/dozPricingService";
 import { UnifiedQuoteRequest } from "../types";
 import { SwapErrorCode } from "../utils/swapErrors";
 import { Pricing, PricingMode } from "../mongoDb/schemas/sch.pricing";
@@ -20,6 +20,7 @@ import { getRelayQuote } from "../services/relay.service";
 import { getZeroExQuote } from "../services/zeroEx.service";
 import { buildDozSwapTx } from "../services/dozAmm.service";
 import { SwapTransaction } from "../mongoDb/schemas/sch.swapTx";
+import { DozCandleInterval, DozPriceCandleModel } from "../mongoDb/schemas/sch.dozPriceCandle";
 
 
 const router = Router();
@@ -577,10 +578,12 @@ router.post("/swap/quote",async (req:Request,res:Response)=>{
     return res.status(500).json({message:"Internal server "});
   }
 });
+
 router.post("/swap/tx",async (req:Request,res:Response)=> {
   try {
-    const { walletAddress, isCrossChain, route, from, to, txHash, explorerUrl } = req.body || {};
-
+    const { walletAddress, isCrossChain, route="", from, to, txHash, explorerUrl } = req.body || {};
+    console.log({walletAddress, isCrossChain, route, from, to, txHash, explorerUrl});
+    
     if (!walletAddress || !txHash || !from?.address || !to?.address) {
       return res.status(400).json({ success: false, message: "Missing required swap transaction fields" });
     }
@@ -590,7 +593,7 @@ router.post("/swap/tx",async (req:Request,res:Response)=> {
       {
         walletAddress: String(walletAddress).toLowerCase(),
         isCrossChain: !!isCrossChain,
-        route: route || "",
+        route,
         from,
         to,
         txHash: String(txHash).toLowerCase(),
@@ -598,7 +601,14 @@ router.post("/swap/tx",async (req:Request,res:Response)=> {
       },
       { upsert: true, new: true, setDefaultsOnInsert: true, runValidators: true },
     );
-
+    recordDozSwapPrice({
+      txHash,
+      walletAddress,
+      fromAddress: from.address,
+      toAddress: to.address,
+      fromAmountRaw: from.amount,
+      toAmountRaw: to.amount,
+    }).catch((err) => console.error("recordDozSwapPrice failed:", err));
     return res.status(201).json({ success: true, data: doc });
   } catch (err: any) {
     if (err?.code === 11000) {
@@ -608,5 +618,20 @@ router.post("/swap/tx",async (req:Request,res:Response)=> {
     return res.status(500).json({ success: false, message: "Failed to record swap transaction" });
   }
 });
+router.get("/swap/doz/candles", async (req: Request, res: Response) => {
+  const interval = (req.query.interval as DozCandleInterval) || DozCandleInterval.FIFTEEN_MIN;
+  const limit = Math.min(Number(req.query.limit) || 500, 1000);
 
+  const candles = await DozPriceCandleModel.find({ interval }).sort({ bucketStart: -1 }).limit(limit).lean();
+
+  return res.json(
+    candles.reverse().map((c) => ({
+      time: Math.floor(c.bucketStart.getTime() / 1000),
+      open: c.open,
+      high: c.high,
+      low: c.low,
+      close: c.close,
+    })),
+  );
+});
 export default router;
