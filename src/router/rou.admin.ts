@@ -601,14 +601,14 @@ router.post("/swap/tx",async (req:Request,res:Response)=> {
       },
       { upsert: true, new: true, setDefaultsOnInsert: true, runValidators: true },
     );
-    recordDozSwapPrice({
+    await recordDozSwapPrice({
       txHash,
       walletAddress,
       fromAddress: from.address,
       toAddress: to.address,
       fromAmountRaw: from.amount,
       toAmountRaw: to.amount,
-    }).catch((err) => console.error("recordDozSwapPrice failed:", err));
+    })
     return res.status(201).json({ success: true, data: doc });
   } catch (err: any) {
     if (err?.code === 11000) {
@@ -618,20 +618,31 @@ router.post("/swap/tx",async (req:Request,res:Response)=> {
     return res.status(500).json({ success: false, message: "Failed to record swap transaction" });
   }
 });
+const VALID_INTERVALS = new Set(Object.values(DozCandleInterval));
+
 router.get("/swap/doz/candles", async (req: Request, res: Response) => {
-  const interval = (req.query.interval as DozCandleInterval) || DozCandleInterval.FIFTEEN_MIN;
-  const limit = Math.min(Number(req.query.limit) || 500, 1000);
+  try {
+    const interval = req.query.interval as DozCandleInterval;
+    if (!interval || !VALID_INTERVALS.has(interval)) {
+      return res.status(400).json({ message: `interval must be one of: ${[...VALID_INTERVALS].join(", ")}` });
+    }
+    const limit = Math.min(Math.max(Number(req.query.limit) || 500, 1), 1000);
 
-  const candles = await DozPriceCandleModel.find({ interval }).sort({ bucketStart: -1 }).limit(limit).lean();
+    const candles = await DozPriceCandleModel.find({ interval }).sort({ bucketStart: -1 }).limit(limit).lean();
 
-  return res.json(
-    candles.reverse().map((c) => ({
-      time: Math.floor(c.bucketStart.getTime() / 1000),
-      open: c.open,
-      high: c.high,
-      low: c.low,
-      close: c.close,
-    })),
-  );
+    return res.json(
+      candles.reverse().map((c) => ({
+        time: Math.floor(c.bucketStart.getTime() / 1000),
+        open: c.open,
+        high: c.high,
+        low: c.low,
+        close: c.close,
+      })),
+    );
+  } catch (err) {
+    console.error("GET /swap/doz/candles error:", err);
+    return res.status(500).json({ message: "Failed to load DOZ candles" });
+  }
 });
+
 export default router;

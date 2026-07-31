@@ -14,9 +14,9 @@ const replaceWssToHttps = (rpc: string) => rpc.replace("wss", "https");
 
 export const getRpcForPool: string = replaceWssToHttps(env.node_env === "test" ? "wss://eth-hoodi.g.alchemy.com/v2/e1DbDpM-e6e_d6qf-nDs2" : CHAINS.AVALANCHE.rpc);
 
-const provider = new ethers.JsonRpcProvider(getRpcForPool);
-const router = new ethers.Contract(env.ROUTER_ADDRESS, ROUTER_ABI, provider);
-const pool = new ethers.Contract(env.POOL_ADDRESS, POOL_ABI || POOL_ABI, provider);
+export const provider = new ethers.JsonRpcProvider(getRpcForPool);
+export const router = new ethers.Contract(env.ROUTER_ADDRESS, ROUTER_ABI, provider);
+export const pool = new ethers.Contract(env.POOL_ADDRESS, POOL_ABI || POOL_ABI, provider);
 
 function createDozAmmError(message: string, code: SwapErrorCode = SwapErrorCode.UNKNOWN): SwapServiceError {
   const error = new SwapServiceError(code, message);
